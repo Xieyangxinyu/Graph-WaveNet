@@ -5,9 +5,10 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+import pickle
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--device',type=str,default='cuda:3',help='')
+parser.add_argument('--device',type=str,default='cuda',help='')
 parser.add_argument('--data',type=str,default='data/METR-LA',help='data path')
 parser.add_argument('--adjdata',type=str,default='data/sensor_graph/adj_mx.pkl',help='adj data path')
 parser.add_argument('--adjtype',type=str,default='doubletransition',help='adj type')
@@ -45,7 +46,8 @@ def main():
     if args.aptonly:
         supports = None
 
-    model =  gwnet(device, args.num_nodes, args.dropout, supports=supports, gcn_bool=args.gcn_bool, addaptadj=args.addaptadj, aptinit=adjinit)
+    out_dim = 24
+    model =  gwnet(device, args.num_nodes, args.dropout, out_dim=out_dim, supports=supports, gcn_bool=args.gcn_bool, addaptadj=args.addaptadj, aptinit=adjinit)
     model.to(device)
     model.load_state_dict(torch.load(args.checkpoint))
     model.eval()
@@ -63,7 +65,7 @@ def main():
         testx = torch.Tensor(x).to(device)
         testx = testx.transpose(1,3)
         with torch.no_grad():
-            preds = model(testx).transpose(1,3)
+            preds = model(testx)[:,:,:,:12].transpose(1,3)
         outputs.append(preds.squeeze())
 
     yhat = torch.cat(outputs,dim=0)
@@ -97,14 +99,19 @@ def main():
         sns.heatmap(df, cmap="RdYlBu")
         plt.savefig("./emb"+ '.pdf')
 
-    y12 = realy[:,99,11].cpu().detach().numpy()
-    yhat12 = scaler.inverse_transform(yhat[:,99,11]).cpu().detach().numpy()
+    y12 = realy[:,:,11].cpu().detach().numpy()
+    yhat12 = scaler.inverse_transform(yhat[:,:,11]).cpu().detach().numpy()
 
-    y3 = realy[:,99,2].cpu().detach().numpy()
-    yhat3 = scaler.inverse_transform(yhat[:,99,2]).cpu().detach().numpy()
+    y6 = realy[:,:,5].cpu().detach().numpy()
+    yhat6 = scaler.inverse_transform(yhat[:,:,5]).cpu().detach().numpy()
 
-    df2 = pd.DataFrame({'real12':y12,'pred12':yhat12, 'real3': y3, 'pred3':yhat3})
-    df2.to_csv('./wave.csv',index=False)
+    y3 = realy[:,:,2].cpu().detach().numpy()
+    yhat3 = scaler.inverse_transform(yhat[:,:,2]).cpu().detach().numpy()
+
+    data = {'real12':y12,'pred12':yhat12, 'real6': y6, 'pred6':yhat6, 'real3': y3, 'pred3':yhat3}
+    #df2 = pd.DataFrame(data)
+    #df2.to_csv('./wave.csv',index=False)
+    pickle.dump(data, open("wave.pkl", "wb"))
 
 
 if __name__ == "__main__":

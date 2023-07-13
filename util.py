@@ -4,6 +4,8 @@ import os
 import scipy.sparse as sp
 import torch
 from scipy.sparse import linalg
+import torch.nn.functional as F
+from train import device
 
 
 class DataLoader(object):
@@ -188,6 +190,57 @@ def masked_mae(preds, labels, null_val=np.nan):
     return torch.mean(loss)
 
 
+def masked_kirtosis(preds, labels, null_val=np.nan):
+    if np.isnan(null_val):
+        mask = ~torch.isnan(labels)
+    else:
+        mask = (labels!=null_val)
+    mask = mask.float()
+    mask /=  torch.mean((mask))
+    mask = torch.where(torch.isnan(mask), torch.zeros_like(mask), mask)
+    loss = torch.abs(preds-labels)
+    loss = loss * mask
+    loss = torch.where(torch.isnan(loss), torch.zeros_like(loss), loss)
+    aux_loss = (preds-labels) ** 2
+    aux_loss = aux_loss * mask
+    aux_loss = torch.where(torch.isnan(aux_loss), torch.zeros_like(aux_loss), aux_loss)
+    mean = torch.mean(aux_loss)
+    std  = torch.std(aux_loss)
+    aux_loss = ((aux_loss - mean) / std) ** 4
+    loss = loss + 0.01 * aux_loss
+    return torch.mean(loss)
+
+
+def focal_loss(inputs: torch.Tensor, targets: torch.Tensor, alpha: float = 0.25, gamma: float = 2):
+    p = torch.sigmoid(inputs)
+    ce_loss = F.binary_cross_entropy_with_logits(inputs, targets, reduction="none")
+    p_t = p * targets + (1 - p) * (1 - targets)
+    loss = ce_loss * ((1 - p_t) ** gamma)
+
+    if alpha >= 0:
+        alpha_t = alpha * targets + (1 - alpha) * (1 - targets)
+        loss = alpha_t * loss
+    return loss
+
+def masked_focal(preds, labels, null_val=np.nan, tag = None):
+    if np.isnan(null_val):
+        mask = ~torch.isnan(labels)
+    else:
+        mask = (labels!=null_val)
+    mask = mask.float()
+    mask /=  torch.mean((mask))
+    mask = torch.where(torch.isnan(mask), torch.zeros_like(mask), mask)
+    loss = torch.abs(preds-labels)
+    loss = loss * mask
+    loss = torch.where(torch.isnan(loss), torch.zeros_like(loss), loss)
+    target = (labels < 50) * 1.0
+    aux_loss = focal_loss(tag, target)
+    aux_loss = aux_loss * mask
+    aux_loss = torch.where(torch.isnan(aux_loss), torch.zeros_like(aux_loss), aux_loss)
+    loss = loss + 0.1 * aux_loss
+    return torch.mean(loss)
+
+
 def masked_mape(preds, labels, null_val=np.nan):
     if np.isnan(null_val):
         mask = ~torch.isnan(labels)
@@ -209,3 +262,33 @@ def metric(pred, real):
     return mae,mape,rmse
 
 
+from torch.nn.modules.loss import _Loss
+
+def bmc_loss(pred, target, null_val, noise_var = 1.0):
+    pred = torch.flatten(pred)
+    target = torch.flatten(target)
+    if np.isnan(null_val):
+        mask = ~torch.isnan(target)
+    else:
+        mask = (target!=null_val)
+    pred = pred[mask].unsqueeze(1)
+    target = target[mask].unsqueeze(1)
+    logits = - (pred - target.T).pow(2) / (2 * noise_var)    # logit size: [batch, batch]
+    loss = F.cross_entropy(logits, torch.arange(pred.shape[0]).to(device))     # contrastive-like loss
+    loss = loss * (2 * noise_var).detach()  # optional: restore the loss scale, 'detach' when noise is learnable
+    if torch.isnan(loss).item() == True:
+        loss = torch.nan_to_num(loss)
+    return loss
+
+
+class BMCLoss(_Loss):
+    def __init__(self, init_noise_sigma):
+        super(BMCLoss, self).__init__()
+        self.noise_sigma = torch.nn.Parameter(torch.tensor(init_noise_sigma))
+
+    def get_noise(self):
+        return self.noise_sigma ** 2
+
+    def forward(self, pred, target, null_val=np.nan):
+        noise_var = self.noise_sigma ** 2
+        return bmc_loss(pred, target, null_val, noise_var)
