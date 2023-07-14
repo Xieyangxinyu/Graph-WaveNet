@@ -30,16 +30,13 @@ parser.add_argument('--save',type=str,default='./garage/metr',help='save path')
 parser.add_argument('--expid',type=int,default=1,help='experiment id')
 
 args = parser.parse_args()
-
-
-
+device = torch.device(args.device)
 
 def main():
     #set seed
     #torch.manual_seed(args.seed)
     #np.random.seed(args.seed)
     #load data
-    device = torch.device(args.device)
     sensor_ids, sensor_id_to_ind, adj_mx = util.load_adj(args.adjdata,args.adjtype)
     dataloader = util.load_dataset(args.data, args.batch_size, args.batch_size, args.batch_size)
     scaler = dataloader['scaler']

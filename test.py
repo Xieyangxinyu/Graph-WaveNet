@@ -8,7 +8,7 @@ import seaborn as sns
 import pickle
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--device',type=str,default='cuda',help='')
+parser.add_argument('--device',type=str,default='cuda:3',help='')
 parser.add_argument('--data',type=str,default='data/METR-LA',help='data path')
 parser.add_argument('--adjdata',type=str,default='data/sensor_graph/adj_mx.pkl',help='adj data path')
 parser.add_argument('--adjtype',type=str,default='doubletransition',help='adj type')
@@ -46,8 +46,7 @@ def main():
     if args.aptonly:
         supports = None
 
-    out_dim = 24
-    model =  gwnet(device, args.num_nodes, args.dropout, out_dim=out_dim, supports=supports, gcn_bool=args.gcn_bool, addaptadj=args.addaptadj, aptinit=adjinit)
+    model =  gwnet(device, args.num_nodes, args.dropout, supports=supports, gcn_bool=args.gcn_bool, addaptadj=args.addaptadj, aptinit=adjinit)
     model.to(device)
     model.load_state_dict(torch.load(args.checkpoint))
     model.eval()
@@ -65,7 +64,7 @@ def main():
         testx = torch.Tensor(x).to(device)
         testx = testx.transpose(1,3)
         with torch.no_grad():
-            preds = model(testx)[:,:,:,:12].transpose(1,3)
+            preds = model(testx).transpose(1,3)
         outputs.append(preds.squeeze())
 
     yhat = torch.cat(outputs,dim=0)

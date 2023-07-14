@@ -275,9 +275,8 @@ def bmc_loss(pred, target, null_val, noise_var = 1.0):
     target = target[mask].unsqueeze(1)
     logits = - (pred - target.T).pow(2) / (2 * noise_var)    # logit size: [batch, batch]
     loss = F.cross_entropy(logits, torch.arange(pred.shape[0]).to(device))     # contrastive-like loss
-    loss = loss * (2 * noise_var).detach()  # optional: restore the loss scale, 'detach' when noise is learnable
-    if torch.isnan(loss).item() == True:
-        loss = torch.nan_to_num(loss)
+    #loss = loss * (2 * noise_var).detach()  # optional: restore the loss scale, 'detach' when noise is learnable
+    loss = torch.nan_to_num(loss)
     return loss
 
 

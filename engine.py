@@ -6,14 +6,15 @@ class trainer():
         self.model = gwnet(device, num_nodes, dropout, supports=supports, gcn_bool=gcn_bool, addaptadj=addaptadj, aptinit=aptinit, in_dim=in_dim, out_dim=seq_length, residual_channels=nhid, dilation_channels=nhid, skip_channels=nhid * 8, end_channels=nhid * 16)
         self.model.to(device)
         self.optimizer = optim.Adam(self.model.parameters(), lr=lrate, weight_decay=wdecay)
-        self.loss = util.BMCLoss(1.0)
-        self.optimizer.add_param_group({'params': self.loss.noise_sigma, 'name': 'noise_sigma'})
+        #self.loss = util.BMCLoss(1.0)
+        #self.optimizer.add_param_group({'params': self.loss.noise_sigma, 'name': 'noise_sigma'})
+        self.loss = util.bmc_loss
         self.scaler = scaler
         self.clip = 5
 
     def train(self, input, real_val):
         self.model.train()
-        self.loss.train()
+        #self.loss.train()
         self.optimizer.zero_grad()
         input = nn.functional.pad(input,(1,0,0,0))
         output = self.model(input)
@@ -32,7 +33,7 @@ class trainer():
 
     def eval(self, input, real_val):
         self.model.eval()
-        self.loss.eval()
+        #self.loss.eval()
         input = nn.functional.pad(input,(1,0,0,0))
         output = self.model(input)
         output = output.transpose(1,3)
