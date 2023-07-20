@@ -70,6 +70,8 @@ def main():
     yhat = torch.cat(outputs,dim=0)
     yhat = yhat[:realy.size(0),...]
 
+    yhat = yhat[:,:,12:24]
+
 
     amae = []
     amape = []
