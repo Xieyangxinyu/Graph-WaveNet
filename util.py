@@ -208,6 +208,24 @@ def masked_focal_mae_loss(preds, labels, null_val=np.nan, activate='sigmoid', be
     return torch.mean(loss)
 
 
+def masked_focal_mse_loss(preds, labels, null_val=np.nan, activate='sigmoid', beta=.2, gamma=1):
+    if np.isnan(null_val):
+        mask = ~torch.isnan(labels)
+    else:
+        mask = (labels!=null_val)
+    mask = mask.float()
+    mask /=  torch.mean((mask))
+    mask = torch.where(torch.isnan(mask), torch.zeros_like(mask), mask)
+
+    loss = (preds-labels) ** 2
+    loss *= (torch.tanh(beta * torch.abs(preds - labels))) ** gamma if activate == 'tanh' else \
+        (2 * torch.sigmoid(beta * torch.abs(preds - labels)) - 1) ** gamma
+    
+    loss = loss * mask
+    loss = torch.where(torch.isnan(loss), torch.zeros_like(loss), loss)
+    return torch.mean(loss)
+
+
 def masked_kirtosis(preds, labels, null_val=np.nan):
     if np.isnan(null_val):
         mask = ~torch.isnan(labels)
@@ -277,39 +295,21 @@ def quantile_loss(pred, labels, null_val = 0.0):
 
 from torch.nn.modules.loss import _Loss
 
-def bmc_loss(pred, labels, null_val, noise_var = 9.0):
-
-    # pred.shape = [207, 32, 12]
-    # labels.shape = [207, 32, 12]
-
+def bmc_loss(pred, labels, null_val, noise_var = 1.0):
     pred = pred.squeeze().flatten(0,1)
     labels = labels.squeeze().flatten(0,1)
-    # right now:
-    # pred.shape = [207 * batch_size, 12]
-    # denominator of cross entropy is loss summed over all 207 * batch_size possibilities
-    # Only do 1 cross entropy operation
-    # want:
-    # pred.shape = [207, batch_size, 12]
-    # denominator of cross entropy is loss summer over batch_size on that one location
-    # do 207 cross entropy operation and then sum them up
     if np.isnan(null_val):
         mask = ~torch.isnan(labels)
     else:
         mask = (labels!=null_val)
     pred = pred * mask
-    # right now:
-    # pred.shape = [207 * 32, 12]
-    
-    logits = -(pred.unsqueeze(1) - labels.unsqueeze(0)).pow(2).sum(2) / (2 * noise_var)
-    #want:  logits.shape = [207, 32, 32]
-    #now: logits.shape = [207 * 32, 207 * 32]
-
+    try:
+        logits = -(pred.unsqueeze(1) - labels.unsqueeze(0)).pow(2).sum(2) / (2 * noise_var)
+    except:
+        pred = pred.unsqueeze(-1)
+        labels = labels.unsqueeze(-1)
+        logits = -(pred - labels.T).pow(2) / (2 * noise_var)
     loss = F.cross_entropy(logits, torch.arange(pred.shape[0]).to(device))     # contrastive-like loss
-    #want: loss.shape = [207, 1]
-    #now: loss.shape = [1]
-
-
-    #loss = loss * (2 * noise_var).detach()  # optional: restore the loss scale, 'detach' when noise is learnable
     loss = torch.nan_to_num(loss)
     return loss
 
