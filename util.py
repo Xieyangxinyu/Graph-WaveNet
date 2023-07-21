@@ -159,7 +159,8 @@ def load_dataset(dataset_dir, batch_size, valid_batch_size= None, test_batch_siz
     data['scaler'] = scaler
     return data
 
-def masked_mse(preds, labels, null_val=np.nan):
+
+def get_mask(labels, null_val=np.nan):
     if np.isnan(null_val):
         mask = ~torch.isnan(labels)
     else:
@@ -167,6 +168,10 @@ def masked_mse(preds, labels, null_val=np.nan):
     mask = mask.float()
     mask /= torch.mean((mask))
     mask = torch.where(torch.isnan(mask), torch.zeros_like(mask), mask)
+    return mask
+
+def masked_mse(preds, labels, null_val=np.nan):
+    mask = get_mask(labels, null_val=null_val)
     loss = (preds-labels)**2
     loss = loss * mask
     loss = torch.where(torch.isnan(loss), torch.zeros_like(loss), loss)
@@ -177,13 +182,7 @@ def masked_rmse(preds, labels, null_val=np.nan):
 
 
 def masked_mae(preds, labels, null_val=np.nan):
-    if np.isnan(null_val):
-        mask = ~torch.isnan(labels)
-    else:
-        mask = (labels!=null_val)
-    mask = mask.float()
-    mask /=  torch.mean((mask))
-    mask = torch.where(torch.isnan(mask), torch.zeros_like(mask), mask)
+    mask = get_mask(labels, null_val=null_val)
     loss = torch.abs(preds-labels)
     loss = loss * mask
     loss = torch.where(torch.isnan(loss), torch.zeros_like(loss), loss)
@@ -191,13 +190,7 @@ def masked_mae(preds, labels, null_val=np.nan):
 
 
 def masked_focal_mae_loss(preds, labels, null_val=np.nan, activate='sigmoid', beta=.2, gamma=1):
-    if np.isnan(null_val):
-        mask = ~torch.isnan(labels)
-    else:
-        mask = (labels!=null_val)
-    mask = mask.float()
-    mask /=  torch.mean((mask))
-    mask = torch.where(torch.isnan(mask), torch.zeros_like(mask), mask)
+    mask = get_mask(labels, null_val=null_val)
 
     loss = torch.abs(preds-labels)
     loss *= (torch.tanh(beta * torch.abs(preds - labels))) ** gamma if activate == 'tanh' else \
@@ -209,13 +202,7 @@ def masked_focal_mae_loss(preds, labels, null_val=np.nan, activate='sigmoid', be
 
 
 def masked_focal_mse_loss(preds, labels, null_val=np.nan, activate='sigmoid', beta=.2, gamma=1):
-    if np.isnan(null_val):
-        mask = ~torch.isnan(labels)
-    else:
-        mask = (labels!=null_val)
-    mask = mask.float()
-    mask /=  torch.mean((mask))
-    mask = torch.where(torch.isnan(mask), torch.zeros_like(mask), mask)
+    mask = get_mask(labels, null_val=null_val)
 
     loss = (preds-labels) ** 2
     loss *= (torch.tanh(beta * torch.abs(preds - labels))) ** gamma if activate == 'tanh' else \
@@ -227,13 +214,7 @@ def masked_focal_mse_loss(preds, labels, null_val=np.nan, activate='sigmoid', be
 
 
 def masked_kirtosis(preds, labels, null_val=np.nan):
-    if np.isnan(null_val):
-        mask = ~torch.isnan(labels)
-    else:
-        mask = (labels!=null_val)
-    mask = mask.float()
-    mask /=  torch.mean((mask))
-    mask = torch.where(torch.isnan(mask), torch.zeros_like(mask), mask)
+    mask = get_mask(labels, null_val=null_val)
     loss = torch.abs(preds-labels)
     loss = loss * mask
     loss = torch.where(torch.isnan(loss), torch.zeros_like(loss), loss)
@@ -248,14 +229,7 @@ def masked_kirtosis(preds, labels, null_val=np.nan):
 
 
 def masked_mape(preds, labels, null_val=np.nan):
-
-    if np.isnan(null_val):
-        mask = ~torch.isnan(labels)
-    else:
-        mask = (labels!=null_val)
-    mask = mask.float()
-    mask /=  torch.mean((mask))
-    mask = torch.where(torch.isnan(mask), torch.zeros_like(mask), mask)
+    mask = get_mask(labels, null_val=null_val)
     loss = torch.abs(preds-labels)/labels
     loss = loss * mask
     loss = torch.where(torch.isnan(loss), torch.zeros_like(loss), loss)
@@ -276,12 +250,8 @@ def quantile_loss(pred, labels, null_val = 0.0):
     pred = pred.view(-1, 12, 3)
     pred = torch.unbind(pred,2)
 
-    if np.isnan(null_val):
-        mask = ~torch.isnan(labels)
-    else:
-        mask = (labels!=null_val)
-    mask = mask.float()
-    mask /= mask.mean()
+    mask = get_mask(labels, null_val=null_val)
+
     quantiles = [0.025, 0.5, 0.975]
     losses = []
     for i, q in enumerate(quantiles):
@@ -292,9 +262,6 @@ def quantile_loss(pred, labels, null_val = 0.0):
     loss = torch.mean(torch.sum(torch.cat(losses, dim=0), dim=0))
     return loss
 
-
-from torch.nn.modules.loss import _Loss
-
 def bmc_loss(pred, labels, null_val, noise_var = 1.0):
     pred = pred.squeeze().flatten(0,1)
     labels = labels.squeeze().flatten(0,1)
@@ -303,27 +270,7 @@ def bmc_loss(pred, labels, null_val, noise_var = 1.0):
     else:
         mask = (labels!=null_val)
     pred = pred * mask
-    try:
-        logits = -(pred.unsqueeze(1) - labels.unsqueeze(0)).pow(2).sum(2) / (2 * noise_var)
-    except:
-        pred = pred.unsqueeze(-1)
-        labels = labels.unsqueeze(-1)
-        logits = -(pred - labels.T).pow(2) / (2 * noise_var)
-    loss = F.cross_entropy(logits, torch.arange(pred.shape[0]).to(device))     # contrastive-like loss
+    logits = -(pred.unsqueeze(1) - labels.unsqueeze(0)).pow(2).sum(2) / (2 * noise_var)
+    loss = F.cross_entropy(logits, torch.arange(pred.shape[0]).cuda())     # contrastive-like loss
     loss = torch.nan_to_num(loss)
     return loss
-
-
-class BMCLoss(_Loss):
-    def __init__(self, init_noise_sigma):
-        super(BMCLoss, self).__init__()
-        self.noise_sigma = torch.nn.Parameter(torch.tensor(init_noise_sigma))
-
-    def get_noise(self):
-        return self.noise_sigma ** 2
-
-    def forward(self, pred, labels, null_val=np.nan):
-        noise_var = self.noise_sigma ** 2
-        return bmc_loss(pred, labels, null_val, noise_var)
-    
-

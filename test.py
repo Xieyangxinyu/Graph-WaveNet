@@ -70,8 +70,6 @@ def main():
     yhat = torch.cat(outputs,dim=0)
     yhat = yhat[:realy.size(0),...]
 
-    yhat = yhat[:,:,12:24]
-
 
     amae = []
     amape = []
@@ -110,8 +108,6 @@ def main():
     yhat3 = scaler.inverse_transform(yhat[:,:,2]).cpu().detach().numpy()
 
     data = {'real12':y12,'pred12':yhat12, 'real6': y6, 'pred6':yhat6, 'real3': y3, 'pred3':yhat3}
-    #df2 = pd.DataFrame(data)
-    #df2.to_csv('./wave.csv',index=False)
     pickle.dump(data, open("wave.pkl", "wb"))
 
 

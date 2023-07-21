@@ -6,15 +6,12 @@ class trainer():
         self.model = gwnet(device, num_nodes, dropout, supports=supports, gcn_bool=gcn_bool, addaptadj=addaptadj, aptinit=aptinit, in_dim=in_dim, out_dim=seq_length, residual_channels=nhid, dilation_channels=nhid, skip_channels=nhid * 8, end_channels=nhid * 16)
         self.model.to(device)
         self.optimizer = optim.Adam(self.model.parameters(), lr=lrate, weight_decay=wdecay)
-        #self.loss = util.BMCLoss(1.0)
-        #self.optimizer.add_param_group({'params': self.loss.noise_sigma, 'name': 'noise_sigma'})
-        self.loss = util.bmc_loss
+        self.loss = util.masked_mae
         self.scaler = scaler
         self.clip = 5
 
     def train(self, input, real_val):
         self.model.train()
-        #self.loss.train()
         self.optimizer.zero_grad()
         input = nn.functional.pad(input,(1,0,0,0))
         output = self.model(input)
@@ -22,6 +19,7 @@ class trainer():
         #output = [batch_size,12,num_nodes,1]
         real = torch.unsqueeze(real_val,dim=1)
         predict = self.scaler.inverse_transform(output)
+
         loss = self.loss(predict, real, 0.0)
         loss.backward()
         if self.clip is not None:
@@ -33,7 +31,6 @@ class trainer():
 
     def eval(self, input, real_val):
         self.model.eval()
-        #self.loss.eval()
         input = nn.functional.pad(input,(1,0,0,0))
         output = self.model(input)
         output = output.transpose(1,3)
@@ -41,7 +38,6 @@ class trainer():
         real = torch.unsqueeze(real_val,dim=1)
         predict = self.scaler.inverse_transform(output)
         loss = self.loss(predict, real, 0.0)
-        #print(self.loss.get_noise())
         mape = util.masked_mape(predict,real,0.0).item()
         rmse = util.masked_rmse(predict,real,0.0).item()
         return loss.item(),mape,rmse
