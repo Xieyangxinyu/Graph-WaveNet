@@ -5,7 +5,6 @@ import scipy.sparse as sp
 import torch
 from scipy.sparse import linalg
 import torch.nn.functional as F
-from train import device
 
 
 class DataLoader(object):

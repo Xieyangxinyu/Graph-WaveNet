@@ -5,6 +5,7 @@ import time
 import util
 import matplotlib.pyplot as plt
 from engine import trainer
+import pickle
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--device',type=str,default='cuda',help='')
@@ -28,6 +29,7 @@ parser.add_argument('--print_every',type=int,default=50,help='')
 #parser.add_argument('--seed',type=int,default=99,help='random seed')
 parser.add_argument('--save',type=str,default='./garage/metr',help='save path')
 parser.add_argument('--expid',type=int,default=1,help='experiment id')
+parser.add_argument('--loss', type=str,default='mae',help='mae, mse, mae-focal, mse-focal, bmse')
 
 args = parser.parse_args()
 device = torch.device(args.device)
@@ -52,11 +54,22 @@ def main():
     if args.aptonly:
         supports = None
 
+   
 
+    if args.loss == 'mse':
+        loss = util.masked_mse
+    elif args.loss == 'mae-focal':
+        loss = util.masked_focal_mae_loss
+    elif args.loss == 'mse-focal':
+        loss = util.masked_focal_mse_loss
+    elif args.loss == 'bmse':
+        loss = util.bmc_loss
+    else:
+        loss = util.masked_mae
 
     engine = trainer(scaler, args.in_dim, args.seq_length, args.num_nodes, args.nhid, args.dropout,
                          args.learning_rate, args.weight_decay, device, supports, args.gcn_bool, args.addaptadj,
-                         adjinit)
+                         adjinit, loss=loss)
 
 
     print("start training...",flush=True)
@@ -162,6 +175,19 @@ def main():
     log = 'On average over 12 horizons, Test MAE: {:.4f}, Test MAPE: {:.4f}, Test RMSE: {:.4f}'
     print(log.format(np.mean(amae),np.mean(amape),np.mean(armse)))
     torch.save(engine.model.state_dict(), args.save+"_exp"+str(args.expid)+"_best_"+str(round(his_loss[bestid],2))+".pth")
+
+    y12 = realy[:,:,11].cpu().detach().numpy()
+    yhat12 = scaler.inverse_transform(yhat[:,:,11]).cpu().detach().numpy()
+
+    y6 = realy[:,:,5].cpu().detach().numpy()
+    yhat6 = scaler.inverse_transform(yhat[:,:,5]).cpu().detach().numpy()
+
+    y3 = realy[:,:,2].cpu().detach().numpy()
+    yhat3 = scaler.inverse_transform(yhat[:,:,2]).cpu().detach().numpy()
+
+    data = {'real12':y12,'pred12': yhat12, 'real6': y6, 'pred6': yhat6, 'real3': y3, 'pred3': yhat3}
+    pickle.dump(data, open(f"wave-{args.loss}.pkl", "wb"))
+
 
 
 
