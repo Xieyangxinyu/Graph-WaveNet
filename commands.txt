@@ -1,0 +1,53 @@
+cd archive
+mkdir mae
+mkdir mse
+mkdir mae-focal
+mkdir mse-focal
+mkdir bmse1
+mkdir bmse9
+mkdir huber
+mkdir kirtosis
+mkdir Gumbel
+mkdir Frechet
+
+
+python train.py --gcn_bool --adjtype doubletransition --addaptadj  --randomadj  --loss mae --save archive/mae/
+
+python train.py --gcn_bool --adjtype doubletransition --addaptadj  --randomadj  --loss mse --save archive/mse/
+
+python train.py --gcn_bool --adjtype doubletransition --addaptadj  --randomadj  --loss mae-focal --save archive/mae-focal/
+
+python train.py --gcn_bool --adjtype doubletransition --addaptadj  --randomadj  --loss mse-focal --save archive/mse-focal/
+
+python train.py --gcn_bool --adjtype doubletransition --addaptadj  --randomadj  --loss bmse1 --save archive/bmse1/
+
+python train.py --gcn_bool --adjtype doubletransition --addaptadj  --randomadj  --loss bmse9 --save archive/bmse9/
+
+python train.py --gcn_bool --adjtype doubletransition --addaptadj  --randomadj  --loss huber --save archive/huber/
+
+python train.py --gcn_bool --adjtype doubletransition --addaptadj  --randomadj  --loss kirtosis --save archive/kirtosis/
+
+python train.py --gcn_bool --adjtype doubletransition --addaptadj  --randomadj  --loss Gumbel --save archive/Gumbel/
+
+python train.py --gcn_bool --adjtype doubletransition --addaptadj  --randomadj  --loss Frechet --save archive/Frechet/
+
+
+python train.py --data data/PEMS-BAY --gcn_bool --adjdata data/sensor_graph/adj_mx_bay.pkl --adjtype doubletransition --addaptadj  --randomadj --num_nodes 325 --loss mae --save archive/mae/
+
+python train.py --data data/PEMS-BAY --gcn_bool --adjdata data/sensor_graph/adj_mx_bay.pkl --adjtype doubletransition --addaptadj  --randomadj --num_nodes 325 --loss mse --save archive/mse/
+
+python train.py --data data/PEMS-BAY --gcn_bool --adjdata data/sensor_graph/adj_mx_bay.pkl --adjtype doubletransition --addaptadj  --randomadj --num_nodes 325 --loss mae-focal --save archive/mae-focal/
+
+python train.py --data data/PEMS-BAY --gcn_bool --adjdata data/sensor_graph/adj_mx_bay.pkl --adjtype doubletransition --addaptadj  --randomadj --num_nodes 325 --loss mse-focal --save archive/mse-focal/
+
+python train.py --data data/PEMS-BAY --gcn_bool --adjdata data/sensor_graph/adj_mx_bay.pkl --adjtype doubletransition --addaptadj  --randomadj --num_nodes 325 --loss bmse1 --save archive/bmse1/
+
+python train.py --data data/PEMS-BAY --gcn_bool --adjdata data/sensor_graph/adj_mx_bay.pkl --adjtype doubletransition --addaptadj  --randomadj --num_nodes 325 --loss bmse9 --save archive/bmse9/
+
+python train.py --data data/PEMS-BAY --gcn_bool --adjdata data/sensor_graph/adj_mx_bay.pkl --adjtype doubletransition --addaptadj  --randomadj --num_nodes 325 --loss huber --save archive/huber/
+
+python train.py --data data/PEMS-BAY --gcn_bool --adjdata data/sensor_graph/adj_mx_bay.pkl --adjtype doubletransition --addaptadj  --randomadj --num_nodes 325 --loss kirtosis --save archive/kirtosis/
+
+python train.py --data data/PEMS-BAY --gcn_bool --adjdata data/sensor_graph/adj_mx_bay.pkl --adjtype doubletransition --addaptadj  --randomadj --num_nodes 325 --loss Gumbel --save archive/Gumbel/
+
+python train.py --data data/PEMS-BAY --gcn_bool --adjdata data/sensor_graph/adj_mx_bay.pkl --adjtype doubletransition --addaptadj  --randomadj --num_nodes 325 --loss Frechet --save archive/Frechet/

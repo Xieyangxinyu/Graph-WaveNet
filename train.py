@@ -25,11 +25,11 @@ parser.add_argument('--learning_rate',type=float,default=0.001,help='learning ra
 parser.add_argument('--dropout',type=float,default=0.3,help='dropout rate')
 parser.add_argument('--weight_decay',type=float,default=0.0001,help='weight decay rate')
 parser.add_argument('--epochs',type=int,default=100,help='')
-parser.add_argument('--print_every',type=int,default=50,help='')
+parser.add_argument('--print_every',type=int,default=100,help='')
 #parser.add_argument('--seed',type=int,default=99,help='random seed')
-parser.add_argument('--save',type=str,default='./garage/metr',help='save path')
+parser.add_argument('--save',type=str,default='./garage/',help='save path')
 parser.add_argument('--expid',type=int,default=1,help='experiment id')
-parser.add_argument('--loss', type=str,default='mae',help='mae, mse, mae-focal, mse-focal, bmse')
+parser.add_argument('--loss', type=str,default='mae',help='mae, mse, mae-focal, mse-focal, bmse1, bmse9, huber, kirtosis, Gumbel, Frechet')
 
 args = parser.parse_args()
 device = torch.device(args.device)
@@ -54,16 +54,24 @@ def main():
     if args.aptonly:
         supports = None
 
-   
-
     if args.loss == 'mse':
         loss = util.masked_mse
     elif args.loss == 'mae-focal':
         loss = util.masked_focal_mae_loss
     elif args.loss == 'mse-focal':
         loss = util.masked_focal_mse_loss
-    elif args.loss == 'bmse':
-        loss = util.bmc_loss
+    elif args.loss == 'bmse1':
+        loss = util.masked_bmc_loss_1
+    elif args.loss == 'bmse9':
+        loss = util.masked_bmc_loss_9
+    elif args.loss == 'huber':
+        loss = util.masked_huber
+    elif args.loss == 'kirtosis':
+        loss = util.masked_kirtosis
+    elif args.loss == 'Gumbel':
+        loss = util.masked_Gumbel
+    elif args.loss == 'Frechet':
+        loss = util.masked_Frechet
     else:
         loss = util.masked_mae
 
@@ -76,6 +84,7 @@ def main():
     his_loss =[]
     val_time = []
     train_time = []
+
     for i in range(1,args.epochs+1):
         #if i % 10 == 0:
             #lr = max(0.000002,args.learning_rate * (0.1 ** (i // 10)))
@@ -132,6 +141,7 @@ def main():
         log = 'Epoch: {:03d}, Train Loss: {:.4f}, Train MAPE: {:.4f}, Train RMSE: {:.4f}, Valid Loss: {:.4f}, Valid MAPE: {:.4f}, Valid RMSE: {:.4f}, Training Time: {:.4f}/epoch'
         print(log.format(i, mtrain_loss, mtrain_mape, mtrain_rmse, mvalid_loss, mvalid_mape, mvalid_rmse, (t2 - t1)),flush=True)
         torch.save(engine.model.state_dict(), args.save+"_epoch_"+str(i)+"_"+str(round(mvalid_loss,2))+".pth")
+
     print("Average Training Time: {:.4f} secs/epoch".format(np.mean(train_time)))
     print("Average Inference Time: {:.4f} secs".format(np.mean(val_time)))
 
@@ -179,16 +189,17 @@ def main():
     y12 = realy[:,:,11].cpu().detach().numpy()
     yhat12 = scaler.inverse_transform(yhat[:,:,11]).cpu().detach().numpy()
 
+    y9 = realy[:,:,8].cpu().detach().numpy()
+    yhat9 = scaler.inverse_transform(yhat[:,:,8]).cpu().detach().numpy()
+
     y6 = realy[:,:,5].cpu().detach().numpy()
     yhat6 = scaler.inverse_transform(yhat[:,:,5]).cpu().detach().numpy()
 
     y3 = realy[:,:,2].cpu().detach().numpy()
     yhat3 = scaler.inverse_transform(yhat[:,:,2]).cpu().detach().numpy()
 
-    data = {'real12':y12,'pred12': yhat12, 'real6': y6, 'pred6': yhat6, 'real3': y3, 'pred3': yhat3}
-    pickle.dump(data, open(f"wave-{args.loss}.pkl", "wb"))
-
-
+    data = {'real12':y12, 'pred12': yhat12, 'real9':y9, 'pred9': yhat9, 'real6': y6, 'pred6': yhat6, 'real3': y3, 'pred3': yhat3}
+    pickle.dump(data, open(f"result/wave-{args.loss}.pkl", "wb"))
 
 
 if __name__ == "__main__":

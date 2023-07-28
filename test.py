@@ -8,7 +8,7 @@ import seaborn as sns
 import pickle
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--device',type=str,default='cuda:3',help='')
+parser.add_argument('--device',type=str,default='cuda',help='')
 parser.add_argument('--data',type=str,default='data/METR-LA',help='data path')
 parser.add_argument('--adjdata',type=str,default='data/sensor_graph/adj_mx.pkl',help='adj data path')
 parser.add_argument('--adjtype',type=str,default='doubletransition',help='adj type')
@@ -101,14 +101,17 @@ def main():
     y12 = realy[:,:,11].cpu().detach().numpy()
     yhat12 = scaler.inverse_transform(yhat[:,:,11]).cpu().detach().numpy()
 
+    y9 = realy[:,:,8].cpu().detach().numpy()
+    yhat9 = scaler.inverse_transform(yhat[:,:,8]).cpu().detach().numpy()
+
     y6 = realy[:,:,5].cpu().detach().numpy()
     yhat6 = scaler.inverse_transform(yhat[:,:,5]).cpu().detach().numpy()
 
     y3 = realy[:,:,2].cpu().detach().numpy()
     yhat3 = scaler.inverse_transform(yhat[:,:,2]).cpu().detach().numpy()
 
-    data = {'real12':y12,'pred12':yhat12, 'real6': y6, 'pred6':yhat6, 'real3': y3, 'pred3':yhat3}
-    pickle.dump(data, open("wave.pkl", "wb"))
+    data = {'real12':y12, 'pred12': yhat12, 'real9':y9, 'pred9': yhat9, 'real6': y6, 'pred6': yhat6, 'real3': y3, 'pred3': yhat3}
+    pickle.dump(data, open(f"result/wave-{args.loss}.pkl", "wb"))
 
 
 if __name__ == "__main__":
